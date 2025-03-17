@@ -116,6 +116,67 @@ namespace RC.DBA
             return items;
         }
 
+        public static T LoadOneFromDb<T>(DbConnection con, string sqlText, Func<IDataReader, T> mapper, params DbParameter[] parameters)
+        {
+            T item;
+            using (var cmd = con.CreateCommand())
+            {
+                cmd.CommandText = sqlText;
+                foreach (var param in parameters)
+                    cmd.Parameters.Add(param);
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    item = reader.Read() ? mapper(reader) : default(T);
+                }
+            }
+
+
+            return item;
+        }
+
+        public static T LoadOneFromDb<T>(DbConnection con, string sqlText, Func<IDataReader, T> mapper, params Parameter[] parameters)
+        {
+            T item;
+            using (var cmd = con.CreateCommand())
+            {
+                cmd.CommandText = sqlText;
+                foreach (var param in parameters)
+                    cmd.Parameters.Add(param.DbParameter(cmd));
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    item = reader.Read() ? mapper(reader) : default(T);
+                }
+            }
+
+
+            return item;
+        }
+
+        public static T LoadOneFromDb<T>(DbConnection con, string sqlText, ref Func<IDataReader, T> mapper, Func<SqlDataReaderMapper<T>> mapperFactory, params Parameter[] parameters)
+        {
+            T item;
+            using (var cmd = con.CreateCommand())
+            {
+                cmd.CommandText = sqlText;
+                foreach (var param in parameters)
+                    cmd.Parameters.Add(param.DbParameter(cmd));
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    if (mapper == null)
+                        mapper = mapperFactory().Build(reader);
+
+                    item = reader.Read() ? mapper(reader) : default(T);
+                }
+            }
+
+
+            return item;
+        }
+
+
         public static List<T> LoadFromDb<T>(DbConnection con, DbTransaction trn, string sqlText, Func<IDataReader, T> mapper, params DbParameter[] parameters)
         {
             List<T> items;
@@ -128,6 +189,29 @@ namespace RC.DBA
 
                 using (var reader = cmd.ExecuteReader())
                 {
+                    items = LoadFromDb(reader, mapper);
+                }
+            }
+
+
+            return items;
+        }
+
+        public static List<T> LoadFromDb<T>(DbConnection con, DbTransaction trn, string sqlText, ref Func<IDataReader, T> mapper, Func<SqlDataReaderMapper<T>> mapperFactory, params Parameter[] parameters)
+        {
+            List<T> items;
+            using (var cmd = con.CreateCommand())
+            {
+                cmd.Transaction = trn;
+                cmd.CommandText = sqlText;
+                foreach (var param in parameters)
+                    cmd.Parameters.Add(param.DbParameter(cmd));
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    if (mapper == null)
+                        mapper = mapperFactory().Build(reader);
+
                     items = LoadFromDb(reader, mapper);
                 }
             }
@@ -243,6 +327,42 @@ namespace RC.DBA
 
             return new ValueEnumerator<T>(cmd, reader, mapper);
         }
+
+        public static IEnumerable<T> LoadOneByOneFromDb<T>(DbConnection con, DbTransaction trn, string sqlText, ref Func<IDataReader, T> mapper, Func<SqlDataReaderMapper<T>> mapperFactory, params Parameter[] parameters)
+        {
+            return LoadOneByOneFromDb(con, trn, sqlText, 30, ref mapper, mapperFactory, parameters);
+        }
+
+        public static IEnumerable<T> LoadOneByOneFromDb<T>(DbConnection con, DbTransaction trn, string sqlText, int commandTimeout, ref Func<IDataReader, T> mapper, Func<SqlDataReaderMapper<T>> mapperFactory, params Parameter[] parameters)
+        {
+            var cmd = con.CreateCommand();
+
+            cmd.Transaction = trn;
+            cmd.CommandText = sqlText;
+            cmd.CommandTimeout = commandTimeout;
+            foreach (var param in parameters)
+                cmd.Parameters.Add(param.DbParameter(cmd));
+
+            DbDataReader reader = null;
+            try
+            {
+                reader = cmd.ExecuteReader();
+
+                if (mapper == null)
+                    mapper = mapperFactory().Build(reader);
+
+            }
+            catch
+            {
+                ((IDisposable)reader)?.Dispose();
+                cmd?.Dispose();
+
+                throw;
+            }
+
+            return new ValueEnumerator<T>(cmd, reader, mapper);
+        }
+
 
         public static IEnumerable<(T, T1)> LoadOneByOneFromDb<T, T1, T2>(DbConnection con, DbTransaction trn, string sqlText,
             ref Func<IDataReader, (T, T1)> mapper,
