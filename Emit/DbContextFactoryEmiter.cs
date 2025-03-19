@@ -415,7 +415,7 @@ namespace RC.DBA.Emit
                 // [..., item]
                 gen.Emit(OpCodes.Dup); // [..., item, item]
 
-                var addMethodInfo = propType.GetMethod("Add");
+                var addMethodInfo = GetCollectionPropAddMethod(propType); //propType.GetMethod("Add");
                 var listType = (addMethodInfo.ReturnType == typeof(bool) 
                     ? typeof(HashSet<>) 
                     : (entityEmitter.HasCache(childObj) ? typeof(Collections.HashSetList<>) : typeof(List<>))
@@ -572,9 +572,9 @@ namespace RC.DBA.Emit
 
         static void EmitEntityCollectionProp(ILGenerator gen, obj_prop_meta metaProp, EntityCacheEmitter entityEmitter)
         {
-            Type propType = GetMemberType(metaProp.prop);   
-            
-            var addMethodInfo = propType.GetMethod("Add");
+            Type propType = GetMemberType(metaProp.prop);
+
+            var addMethodInfo = GetCollectionPropAddMethod(propType); //propType.GetMethod("Add");
 
             var childIsNull = EmitChildIdProp(gen, metaProp, entityEmitter, true);
 
@@ -974,6 +974,26 @@ namespace RC.DBA.Emit
                 return ((FieldInfo)member).FieldType;
         }
 
+        public static MethodInfo GetCollectionPropAddMethod(Type propType)
+        {
+            var addMethodInfo = propType.GetMethod("Add");
+
+            if(addMethodInfo == null && propType.IsInterface)
+            {
+                var baseInterfaces = propType.GetInterfaces();
+                foreach (var interfaceType in baseInterfaces)
+                {
+                    addMethodInfo = interfaceType.GetMethod("Add");
+                    if (addMethodInfo != null)
+                        break;
+                }
+            }
+
+            if (addMethodInfo == null)
+                throw new NotSupportedException($"{propType} type cannot be used for collection property. Cannot find Add(T item) method.");
+
+            return addMethodInfo;
+        }
 
         public static Func<DbDataReader, T> EmitValueFactory<T>(string prefix, bool emitRead)
         {
