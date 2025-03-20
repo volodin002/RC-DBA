@@ -12,6 +12,10 @@ namespace RC.DBA.Query
 
         IOrderBy<T> OrderBy<TProp>(Expression<Func<T, TProp>> expression, bool desc);
 
+        IOrderBy<T> OrderBy<TProp>(string alias, Expression<Func<T, TProp>> expression);
+
+        IOrderBy<T> OrderBy<TProp>(string alias, Expression<Func<T, TProp>> expression, bool desc);
+
         IOrderBy<T> OrderBy(string field);
 
         IOrderBy<T> OrderBy(string field, bool desc);

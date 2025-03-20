@@ -1,4 +1,5 @@
 ﻿using RC.DBA.Metamodel;
+using RC.DBA.Metamodel.Impl;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -46,13 +47,12 @@ namespace RC.DBA.Query.Impl
 
         public IOrderBy<T> OrderBy<TProp>(Expression<Func<T, TProp>> expression)
         {
-            var memberInfo = Helper.Member(expression);
-            var entityAttr = _ctx.ModelManager.Entity<T>().GetAttribute(memberInfo.Name);
+            return OrderBy(expression, false);
+        }
 
-            if (_expressions == null) _expressions = new List<IOrderByExpression>();
-            _expressions.Add(new OrderByExpressionImpl(_alias, entityAttr));
-
-            return this;
+        public IOrderBy<T> OrderBy<TProp>(string alias, Expression<Func<T, TProp>> expression)
+        {
+            return OrderBy(alias, expression, false);
         }
 
         public IOrderBy<T> OrderBy(string field)
@@ -74,6 +74,17 @@ namespace RC.DBA.Query.Impl
 
             if (_expressions == null) _expressions = new List<IOrderByExpression>();
             _expressions.Add(new OrderByExpressionImpl(_alias, entityAttr) { IsDesc = desc });
+
+            return this;
+        }
+
+        public IOrderBy<T> OrderBy<TProp>(string alias, Expression<Func<T, TProp>> expression, bool desc)
+        {
+            var memberInfo = Helper.Member(expression);
+            var entityAttr = _ctx.ModelManager.Entity<T>().GetAttribute(memberInfo.Name);
+
+            if (_expressions == null) _expressions = new List<IOrderByExpression>();
+            _expressions.Add(new OrderByExpressionWithAliasImpl(new AliasExpressionImpl(alias), entityAttr) { IsDesc = desc });
 
             return this;
         }
@@ -122,9 +133,9 @@ namespace RC.DBA.Query.Impl
 
     class OrderByExpressionImpl : IOrderByExpression
     {
-        private IAliasExpression _alias;
-        IEntityAttribute _entityAttribute;
-        private bool _isDesc;
+        protected IAliasExpression _alias;
+        protected IEntityAttribute _entityAttribute;
+        protected bool _isDesc;
         public string Name => _entityAttribute.Name;
 
         public bool IsDesc { get => _isDesc; set => _isDesc = value; }
@@ -146,7 +157,7 @@ namespace RC.DBA.Query.Impl
             return this; 
         }
 
-        public StringBuilder CompileToSQL(StringBuilder sql)
+        public virtual StringBuilder CompileToSQL(StringBuilder sql)
         {
             _alias.CompileToSQL(sql)
                 .Append('t').Append(_entityAttribute.EntityType.Table.Index)
@@ -157,5 +168,23 @@ namespace RC.DBA.Query.Impl
             return sql;
         }
         
+    }
+
+    class OrderByExpressionWithAliasImpl : OrderByExpressionImpl
+    {
+        public OrderByExpressionWithAliasImpl(IAliasExpression alias, IEntityAttribute entityAttribute) : base(alias, entityAttribute)
+        {
+        }
+
+        public override StringBuilder CompileToSQL(StringBuilder sql)
+        {
+            _alias.CompileToSQL(sql)
+                .Append('.').Append(_entityAttribute.Column); ;
+               
+            if (_isDesc)
+                sql.Append(" DESC");
+
+            return sql;
+        }
     }
 }

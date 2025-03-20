@@ -18,6 +18,9 @@ namespace RC.DBA.Query
 
         IOrderBy<T> OrderBy<T>(IAliasExpression alias);
 
+        IOrderBy<T> OrderBy<T>(string alias);
+
+
         IUpdateQuery<T> Update<T>();
 
         IInsertValuesQuery<T> InsertValues<T>();

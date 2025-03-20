@@ -42,6 +42,11 @@ namespace RC.DBA.Query.Impl
             return new OrderByImpl<T>(_ctx, alias);
         }
 
+        public IOrderBy<T> OrderBy<T>(string alias)
+        {
+            return new OrderByImpl<T>(_ctx, new AliasExpressionImpl(alias));
+        }
+
         public IUpdateQuery<T> Update<T>()
         {
             var alias = "a" + (alias_number++).ToString();
