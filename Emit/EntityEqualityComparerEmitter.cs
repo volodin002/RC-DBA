@@ -66,7 +66,6 @@ namespace RC.DBA.Emit
 
         private void EmitAttributeCopmare(ILGenerator gen, IEntityAttribute attr)
         {
-            var member = attr.Member;
             var type = attr.MemberType;
             var isNullable = type.IsValueType && Helper.IsNullableType(type); // is Nullable<Type>
             MethodInfo hasValueGetter = null;
@@ -93,10 +92,7 @@ namespace RC.DBA.Emit
             }
 
             gen.Emit(OpCodes.Ldarg_1);
-            if (attr.IsProperty)
-                gen.Emit(OpCodes.Callvirt, attr.GetGetter());
-            else
-                gen.Emit(OpCodes.Ldfld, (FieldInfo)member);
+            EmitGetMember(gen, attr);
 
             if (isNullable)
             {
