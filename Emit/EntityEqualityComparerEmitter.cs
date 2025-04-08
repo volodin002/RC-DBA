@@ -17,7 +17,7 @@ namespace RC.DBA.Emit
         IModelManager _modelManager;
 
         Label _returnFalse;
-        Dictionary<Type, LocalBuilder> _locals;
+        Dictionary<Type, LocalBuilder> _locals = new Dictionary<Type, LocalBuilder>();
 
 
         public EntityEqualityComparerEmitter(IModelManager modelManager)
@@ -42,8 +42,8 @@ namespace RC.DBA.Emit
 
         public Func<T, T, bool> EmitEqualityComparer()
         {
-            System.Threading.Interlocked.Increment(ref _DynamicMethodNumber);
-            var method = new DynamicMethod("_$EqualityComparer_" + typeof(T).Name + _DynamicMethodNumber.ToString(),
+            var methodNum = System.Threading.Interlocked.Increment(ref _DynamicMethodNumber);
+            var method = new DynamicMethod("_$EqualityComparer_" + typeof(T).Name + methodNum.ToString(),
                typeof(bool), new[] { typeof(T), typeof(T) }, true);
 
             var gen = method.GetILGenerator();
@@ -69,63 +69,52 @@ namespace RC.DBA.Emit
             var type = attr.MemberType;
             var isNullable = type.IsValueType && Helper.IsNullableType(type); // is Nullable<Type>
             MethodInfo hasValueGetter = null;
-            MethodInfo getDefaultVal = null;
-            LocalBuilder loc = null;
 
-            gen.Emit(OpCodes.Ldarg_0);
-            EmitGetMember(gen, attr);
-
+            gen.Emit(OpCodes.Ldarg_0); //... => [item0]
+            
             if (isNullable)
             {
                 hasValueGetter = type.GetProperty("HasValue").GetGetMethod();
-                getDefaultVal = type.GetMethod("GetValueOrDefault", Type.EmptyTypes);
 
-                if (_locals == null) _locals = new Dictionary<Type, LocalBuilder>();
-                if(!_locals.TryGetValue(type, out loc))
-                {
-                    _locals[type] = loc = gen.DeclareLocal(type);
-                }
-
-                gen.Emit(OpCodes.Stloc, loc);
-                gen.Emit(OpCodes.Ldloca, loc);
-                gen.Emit(OpCodes.Call, hasValueGetter);
+                EmitGetMemberRef(gen, attr); // [item0] => [item0.&attr] (Nullable<Type>&)
+                gen.Emit(OpCodes.Call, hasValueGetter); // [item0.&attr](Nullable<Type>&) => [Nullable<Type>.HasValue]
             }
+            else
+                EmitGetMember(gen, attr); // [item0] => [value]
 
-            gen.Emit(OpCodes.Ldarg_1);
-            EmitGetMember(gen, attr);
-
+            gen.Emit(OpCodes.Ldarg_1); //... => [item1]
+            
             if (isNullable)
             {
-                gen.Emit(OpCodes.Stloc, loc);
-                gen.Emit(OpCodes.Ldloca, loc);
-                gen.Emit(OpCodes.Call, hasValueGetter);
+                EmitGetMemberRef(gen, attr); // [item1] => [item1.&attr] (Nullable<Type>&)
+                gen.Emit(OpCodes.Call, hasValueGetter); // [item1.&attr](Nullable<Type>&) => [Nullable<Type>.HasValue]
 
-                gen.Emit(OpCodes.Ceq);
+                gen.Emit(OpCodes.Ceq); // if(item0.Nullable<Type>.HasValue == item1.Nullable<Type>.HasValue) =>
 
                 gen.Emit(OpCodes.Brfalse, _returnFalse); // one has value but other has not value => this properties is not equal
             }
+            else
+                EmitGetMember(gen, attr); // [item1] => [value]
 
             if (type.IsValueType) // value type
             {
-                if(isNullable) // Nullable<Type>
+                if (isNullable) // Nullable<Type>
                 {
+                    MethodInfo getDefaultVal = type.GetMethod("GetValueOrDefault", Type.EmptyTypes);
+
                     gen.Emit(OpCodes.Ldarg_0);
-                    EmitGetMember(gen, attr);
-                    gen.Emit(OpCodes.Stloc, loc);
-                    gen.Emit(OpCodes.Ldloca, loc);
+                    EmitGetMemberRef(gen, attr);
                     gen.Emit(OpCodes.Call, getDefaultVal);
 
                     gen.Emit(OpCodes.Ldarg_1);
-                    EmitGetMember(gen, attr);
-                    gen.Emit(OpCodes.Stloc, loc);
-                    gen.Emit(OpCodes.Ldloca, loc);
+                    EmitGetMemberRef(gen, attr);
                     gen.Emit(OpCodes.Call, getDefaultVal);
 
                     type = Helper.GetNonNullableType(type);
                 }
 
                 var code = Type.GetTypeCode(type);
-                switch(code)
+                switch (code)
                 {
                     case TypeCode.Boolean:
                     case TypeCode.Byte:
@@ -143,18 +132,19 @@ namespace RC.DBA.Emit
                         break;
                     default:
                         var op = type.GetMethod("op_Equality", BindingFlags.Static | BindingFlags.Public);
+                        if (op == null) throw new NotSupportedException($"Cannot find op_Equality in {type}");
                         gen.Emit(OpCodes.Call, op);
                         break;
                 }
-                
-                
+
+
             }
             else // Ref type
             {
                 if (type == typeof(string))
                     EmitStringCompare(gen);
                 else
-                    throw new NotSupportedException("Type " + type.FullName + 
+                    throw new NotSupportedException("Type " + type.FullName +
                         " is not supported in " + typeof(EntityEqualityComparerEmitter<T>).Name);
             }
 
@@ -168,12 +158,38 @@ namespace RC.DBA.Emit
             gen.Emit(OpCodes.Call, op);
         }
 
-        private static void EmitGetMember(ILGenerator gen, IEntityAttribute attr)
+        private static void EmitGetMember(ILGenerator gen, IEntityAttribute attr) // [item] => [item.value]
         {
             if (attr.IsProperty)
                 gen.Emit(OpCodes.Callvirt, attr.GetGetter());
             else
                 gen.Emit(OpCodes.Ldfld, (FieldInfo)attr.Member);
+        }
+
+        /// <summary>
+        /// For Value Type members only!!!
+        /// </summary>
+        /// <param name="gen"></param>
+        /// <param name="valMember"></param>
+        /// <exception cref="NotSupportedException"></exception>
+        private void EmitGetMemberRef(ILGenerator gen, IEntityAttribute attr) // [item] => [item.&value]
+        {
+            if (attr.IsProperty)
+            {
+                var type = attr.MemberType;
+                
+                if (!_locals.TryGetValue(type, out var loc))
+                {
+                    _locals[type] = loc = gen.DeclareLocal(type);
+                }
+
+                gen.Emit(OpCodes.Callvirt, attr.GetGetter());
+                gen.Emit(OpCodes.Stloc, loc);
+                gen.Emit(OpCodes.Ldloca, loc);
+            }
+            else
+                gen.Emit(OpCodes.Ldflda, (FieldInfo)attr.Member);
+
         }
 
     }
