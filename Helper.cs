@@ -261,4 +261,15 @@ namespace RC.DBA
             public static readonly Guid DateTimeGuid = typeof(DateTime).GUID;
         }
     }
+
+    public static class TypeOf<T>
+    {
+        public static bool IsMemberOf<TMember>(Expression<Func<T, TMember>> expression, MemberInfo member)
+        {
+            return Helper.Member<T, TMember>(expression) == member;
+        }
+
+        public static MemberInfo MemberOf<TMember>(Expression<Func<T, TMember>> expression) => Helper.Member<T, TMember>(expression);
+       
+    }
 }
