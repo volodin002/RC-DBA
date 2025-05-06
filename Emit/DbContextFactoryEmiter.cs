@@ -24,7 +24,7 @@ namespace RC.DBA.Emit
 
         public static Func<DbDataReader, IList<T>> EmitResultListFactory<T>(DbDataReader reader, IModelManager modelManager)
         {
-            var method = EmitResultListFactory<T>(reader, modelManager, true);
+            var method = EmitResultListFactory<T>(reader, modelManager, false);
             return method.CreateDelegate(typeof(Func<DbDataReader, IList<T>>)) as Func<DbDataReader, IList<T>>;
         }
 
