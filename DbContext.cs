@@ -12,6 +12,8 @@ namespace RC.DBA
     {
         private IModelManager _manager;
 
+        public delegate IList<TResult> FactoryWithCount<TResult>(DbDataReader reader, ref int count);
+
         public IModelManager Manager => _manager;
         public DbContext(IModelManager manager)
         {
@@ -318,6 +320,38 @@ namespace RC.DBA
             
         }
 
+        public IList<T> GetResultList<T>(DbConnection con, DbTransaction tran, Query.SqlQueryWithCount<T> query, ref int count)
+        {
+            IList<T> items;
+            using (var cmd = con.CreateCommand())
+            {
+                cmd.Transaction = tran;
+                cmd.CommandText = query.Sql;
+                cmd.CommandType = query.CommandType;
+                if (query.CommandTimeout >= 0)
+                    cmd.CommandTimeout = query.CommandTimeout;
+
+                foreach (var p in query.Parameters)
+                    p.AddDbParameter(cmd);
+
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    var factory = query.factory;
+                    if (factory == null)
+                    {
+                        factory = Emit.DbContextFactoryEmiter.EmitResultListFactoryWithCount<T>(reader, _manager);
+                        query.factory = factory;
+                    }
+
+                    items = factory(reader, ref count);
+                }
+            }
+
+            return items;
+
+        }
+
         public IList<ValueTuple<T, T1>> GetResultList<T, T1>(DbConnection con, DbTransaction tran, Query.SqlQuery<T, T1> query)
         {
             IList<ValueTuple<T, T1>> items;
@@ -436,6 +470,37 @@ namespace RC.DBA
                         query.factory = factory;
                     }
                     items = factory(reader);
+                }
+            }
+
+            return items;
+
+        }
+
+        public IList<T> GetResultList<T>(DbConnection con, Query.SqlQueryWithCount<T> query, ref int count)
+        {
+            IList<T> items;
+            using (var cmd = con.CreateCommand())
+            {
+                cmd.CommandText = query.Sql;
+                cmd.CommandType = query.CommandType;
+                if (query.CommandTimeout >= 0)
+                    cmd.CommandTimeout = query.CommandTimeout;
+
+                foreach (var p in query.Parameters)
+                    p.AddDbParameter(cmd);
+
+                if (con.State != System.Data.ConnectionState.Open) con.Open();
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    var factory = query.factory;
+                    if (factory == null)
+                    {
+                        factory = Emit.DbContextFactoryEmiter.EmitResultListFactoryWithCount<T>(reader, _manager);
+                        query.factory = factory;
+                    }
+                    items = factory(reader, ref count);
                 }
             }
 

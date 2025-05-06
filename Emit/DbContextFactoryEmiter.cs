@@ -24,6 +24,18 @@ namespace RC.DBA.Emit
 
         public static Func<DbDataReader, IList<T>> EmitResultListFactory<T>(DbDataReader reader, IModelManager modelManager)
         {
+            var method = EmitResultListFactory<T>(reader, modelManager, true);
+            return method.CreateDelegate(typeof(Func<DbDataReader, IList<T>>)) as Func<DbDataReader, IList<T>>;
+        }
+
+        public static DbContext.FactoryWithCount<T> EmitResultListFactoryWithCount<T>(DbDataReader reader, IModelManager modelManager)
+        {
+            var method = EmitResultListFactory<T>(reader, modelManager, true);
+            return method.CreateDelegate(typeof(DbContext.FactoryWithCount<T>)) as DbContext.FactoryWithCount<T>;
+        }
+
+        private static DynamicMethod EmitResultListFactory<T>(DbDataReader reader, IModelManager modelManager, bool withCount)
+        {
             int fieldCount = reader.FieldCount;
 
             type_meta meta = new type_meta(typeof(T), modelManager);
@@ -36,11 +48,15 @@ namespace RC.DBA.Emit
                 meta.set_meta_prop(name, 0, names, i);
             }
 
-           var cacheEmmiter = new EntityCacheEmitter();
+            var cacheEmmiter = new EntityCacheEmitter();
 
-           System.Threading.Interlocked.Increment(ref _DynamicMethodNumber);
-           var method = new DynamicMethod("_$ResultListFactory_" + typeof(T).Name + _DynamicMethodNumber.ToString(),
-                typeof(IList<T>), new[] { typeof(DbDataReader) }, true);
+            var methodParameterTypes = withCount
+                ? new[] { typeof(DbDataReader), typeof(int).MakeByRefType() }
+                : new[] { typeof(DbDataReader) };
+
+            System.Threading.Interlocked.Increment(ref _DynamicMethodNumber);
+            var method = new DynamicMethod("_$ResultListFactory_" + typeof(T).Name + _DynamicMethodNumber.ToString(),
+                 typeof(IList<T>), methodParameterTypes, true);
             var gen = method.GetILGenerator();
 
 
@@ -48,7 +64,7 @@ namespace RC.DBA.Emit
             Type resultType = cacheEmmiter.HasCache(meta)
                 ? typeof(Collections.HashSetList<>).MakeGenericType(meta.type)
                 : typeof(List<>).MakeGenericType(meta.type);
-            
+
             var resultCtor = resultType.GetConstructor(Type.EmptyTypes);
             var resultAddMethod = resultType.GetMethod("Add");
 
@@ -58,8 +74,8 @@ namespace RC.DBA.Emit
 
             var whileStartLabel = gen.DefineLabel();
             var whileEndLabel = gen.DefineLabel();
-            
-            gen.MarkLabel(whileStartLabel); // while {
+
+            gen.MarkLabel(whileStartLabel); // while {            
 
             gen.Emit(OpCodes.Ldarg_0); // [ items, reader ]
 
@@ -67,9 +83,18 @@ namespace RC.DBA.Emit
 
             gen.Emit(OpCodes.Brfalse, whileEndLabel); // goto to the end of while(){} loop => [items]
 
+            if (withCount) // [items]
+            {
+                gen.Emit(OpCodes.Ldarg_1);  // [ items, ref count ]
+                gen.Emit(OpCodes.Ldarg_1);  // [ items, ref count, ref count ]
+                gen.Emit(OpCodes.Ldind_I4); // [ items, ref count, count ]
+                gen.Emit(OpCodes.Ldc_I4_1); // [ items, ref count, count, 1 ]
+                gen.Emit(OpCodes.Add);      // [ items, ref count, count + 1 ]
+                gen.Emit(OpCodes.Stind_I4); // [ items, ref count = count + 1 ] => [items]
+            }
 
             gen.Emit(OpCodes.Dup); // [ items, items ]
-            
+
 
             cacheEmmiter.EmitNewObject(gen, meta); // [ items, items, item ]
 
@@ -85,10 +110,10 @@ namespace RC.DBA.Emit
 
             gen.Emit(OpCodes.Br, whileStartLabel); // goto to the start of while(){} loop => [items]
             gen.MarkLabel(whileEndLabel); // } end while
-            
+
             gen.Emit(OpCodes.Ret); // return [items]
 
-            return method.CreateDelegate(typeof(Func<DbDataReader, IList<T>>)) as Func<DbDataReader, IList<T>>;
+            return method;
         }
 
         public static Func<DbDataReader, IList<ValueTuple<T, T1>>> EmitResultListFactory<T, T1>(DbDataReader reader, IModelManager modelManager, string alias1)

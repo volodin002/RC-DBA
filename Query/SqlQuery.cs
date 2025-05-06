@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
-using System.Text;
 
 namespace RC.DBA.Query
 {
@@ -225,6 +224,44 @@ namespace RC.DBA.Query
             else _Parameters.Add(Limit_Parameter_Name, Parameter.Create(Limit_Parameter_Name, value));
 
             return this;
+        }
+    }
+
+    public class SqlQueryWithCount<T> : SqlQuery
+    {
+        public DbContext.FactoryWithCount<T> factory;
+        public SqlQueryWithCount(string sql, params Parameter[] parameters) : base(sql, parameters) { }
+        protected SqlQueryWithCount(string sql, DbContext.FactoryWithCount<T> factory, Collections.HashMap<string, Parameter> parameters) : base(sql, parameters)
+        {
+            this.factory = factory;
+        }
+        public SqlQueryWithCount<T> SetParamValue<TValue>(string name, TValue value)
+        {
+            var p = GetParam<TValue>(name);
+            p.Value = value;
+            return this;
+        }
+
+        public SqlQueryWithCount<T> SetParam<TValue>(Parameter<TValue> parameter)
+        {
+            _Parameters.Set(parameter.Name, parameter);
+            return this;
+        }
+
+        public SqlQueryWithCount<T> GetQuery()
+        {
+            if (factory == null) return this;
+
+            var parameters = _Parameters.Copy();
+            for (int i = 0, count = parameters.Count; i < count; i++)
+            {
+                parameters.SetValueByIndex(i, parameters.GetValueByIndex(i).Copy());
+            }
+            return new SqlQueryWithCount<T>(Sql, factory, parameters)
+            {
+                CommandTimeout = CommandTimeout,
+                CommandType = CommandType
+            };
         }
     }
 
