@@ -399,7 +399,7 @@ namespace RC.DBA.Emit
         {
             // [items, items, item]
             if (childObj.id_prop == null)
-                throw new EmitterException("Child Object property do not have ID field!");
+                throw new EmitterException($"Child Object {childObj.type} do not have ID field!");
             var lblDbNull = EmitReadIsDbNULL(gen, childObj.id_prop);
 
             // [items, items, item]
