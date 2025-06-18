@@ -1,13 +1,10 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RC.DBA.Collections
 {
-    public class HashMap<TKey, TValue> : IEnumerable<TValue>
+    public class HashMap<TKey, TValue> : IList<TValue>, IEnumerable<TValue>
     {
         // store lower 31 bits of hash code
         protected const int Lower31BitMask = 0x7FFFFFFF;
@@ -228,7 +225,50 @@ namespace RC.DBA.Collections
         /// <internalonly/> we avoid boxing and hide interface implementation!!!
         IEnumerator IEnumerable.GetEnumerator() => throw new NotImplementedException();
 
+        
         #endregion // IEnumerable<TValue>
+
+        #region IList<TValue>
+
+        public TValue this[int index] { get => GetValueByIndex(index); set => SetValueByIndex(index, value); }
+
+        public bool IsReadOnly => false;
+
+        /// <internalonly/> hide interface implementation, IndexOf search by Key !!!
+        int IList<TValue>.IndexOf(TValue item) => throw new NotImplementedException();
+
+        public void Insert(int index, TValue item) => throw new NotImplementedException();
+        
+        public void RemoveAt(int index) => throw new NotImplementedException();
+        
+        /// <internalonly/> hide interface implementation, Add must have to parameters Key and Value !!!
+        void ICollection<TValue>.Add(TValue item) => throw new NotImplementedException();
+        
+        public void Clear()
+        {
+            _array = Array.Empty<Slot>();
+            _hash_array = null;
+            _count = 0;
+        }
+
+
+        public bool Contains(TValue item) => throw new NotImplementedException();
+
+
+        public void CopyTo(TValue[] array, int arrayIndex)
+        {
+            var length = array.Length;
+            if(_count < length) length = _count;
+            for (int i = arrayIndex; i < length; i++)
+            {
+                array[i] = _array[i].value;
+            }
+        }
+
+        public bool Remove(TValue item) => throw new NotImplementedException();
+
+
+        #endregion // IList<TValue>
 
         public struct ValueEnumerator : IEnumerator<TValue>
         {
