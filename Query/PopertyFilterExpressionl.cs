@@ -264,16 +264,16 @@ namespace RC.DBA.Query
                 ValueExpressionImpl.Value(sql, value);
             }, new EntityTable[] { _entityAttribute.EntityType.Table });
         }
-        private Predicate Operator(bool value, string op)
-        {
-            return new PredicateImpl(sql =>
-            {
-                CompileToSQL(sql)
-                .Append(op);
+        //private Predicate Operator(bool value, string op)
+        //{
+        //    return new PredicateImpl(sql =>
+        //    {
+        //        CompileToSQL(sql)
+        //        .Append(op);
 
-                ValueExpressionImpl.Value(sql, value);
-            }, new EntityTable[] { _entityAttribute.EntityType.Table });
-        }
+        //        ValueExpressionImpl.Value(sql, value);
+        //    }, new EntityTable[] { _entityAttribute.EntityType.Table });
+        //}
         private Predicate Operator(Parameter<TProp> param, string op)
         {
             return new PredicateImpl(sql =>

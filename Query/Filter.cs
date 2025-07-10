@@ -1,10 +1,10 @@
 ﻿using RC.DBA.Metamodel;
+using RC.DBA.Query.Impl;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace RC.DBA.Query
 {
@@ -84,6 +84,40 @@ namespace RC.DBA.Query
         public static Predicate Or(IEnumerable<Predicate> predicates)
         {
             return new Impl.CompositePredicateImpl(true, predicates.ToArray());
+        }
+
+        public static Predicate Eq<TValue>(Parameter<TValue> parameter, TValue value)
+        {
+            return new PredicateImpl(sql =>
+            {
+                sql.Append('@')
+                .Append(parameter.Name)
+                .Append('=');
+
+                ValueExpressionImpl.Value(sql, value);
+            }, null);
+        }
+
+        public static Predicate IsNull<TValue>(Parameter<TValue> parameter)
+        {
+            return new PredicateImpl(sql =>
+            {
+                sql.Append('@')
+                .Append(parameter.Name)
+                .Append(" is NULL");
+
+            }, null);
+        }
+
+        public static Predicate IsNotNull<TValue>(Parameter<TValue> parameter)
+        {
+            return new PredicateImpl(sql =>
+            {
+                sql.Append('@')
+                .Append(parameter.Name)
+                .Append(" is not NULL");
+                
+            }, null);
         }
     }
 }
