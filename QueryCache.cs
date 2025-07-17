@@ -42,4 +42,26 @@ namespace RC.DBA
 
         public bool Remove(string key, out SqlQuery query) => _cache.TryRemove(key, out query);
     }
+
+    public class UpdateQueryCache
+    {
+        private static ConcurrentDictionary<string, object> _cache = new ConcurrentDictionary<string, object>();
+
+        public static UpdateObjectCompiledQuery<T> CreateOrGet<T>(DbContext ctx, string key, Func<IQueryBuilder, UpdateObjectCompiledQuery<T>> factory)
+        {
+            if (_cache.TryGetValue(key, out var query))
+                return ((UpdateObjectCompiledQuery<T>)query);
+
+            var queryBuilder = ctx.GetQueryBuilder();
+            var query0 = factory(queryBuilder);
+
+            _cache.TryAdd(key, query0);
+
+            return query0;
+        }
+
+        public void Clear() => _cache.Clear();
+
+        public bool Remove(string key, out object query) => _cache.TryRemove(key, out query);
+    }
 }
