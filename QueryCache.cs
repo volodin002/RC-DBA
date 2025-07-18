@@ -38,6 +38,19 @@ namespace RC.DBA
             return query0;
         }
 
+        public static SqlQuery<T, T1> CreateOrGet<T, T1>(DbContext ctx, string key, Func<IQueryBuilder, SqlQuery<T, T1>> factory)
+        {
+            if (_cache.TryGetValue(key, out var query))
+                return ((SqlQuery<T, T1>)query).GetQuery();
+
+            var queryBuilder = ctx.GetQueryBuilder();
+            var query0 = factory(queryBuilder);
+
+            _cache.TryAdd(key, query0);
+
+            return query0;
+        }
+
         public void Clear() => _cache.Clear();
 
         public bool Remove(string key, out SqlQuery query) => _cache.TryRemove(key, out query);
