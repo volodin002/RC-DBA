@@ -93,6 +93,22 @@ namespace RC.DBA.Collections
             return true;
         }
 
+        public TValue GetValueByKey(TKey key)
+        {
+            int index = IndexOf(key);
+            if (index < 0) return default(TValue);
+
+            return _array[index].value;
+        }
+
+        public TValue GetValueByKey(TKey key, TValue defaultValue)
+        {
+            int index = IndexOf(key);
+            if (index < 0) return defaultValue;
+
+            return _array[index].value;
+        }
+
         public void Add(TKey key, TValue value)
         {
             var comparer = EqualityComparer<TKey>.Default;
