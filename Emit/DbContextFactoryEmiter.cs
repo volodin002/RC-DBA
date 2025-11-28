@@ -105,6 +105,8 @@ namespace RC.DBA.Emit
 
             cacheEmmiter.EmitSetImplementationProp(gen, meta);
 
+            if (meta.type.IsValueType)
+                gen.Emit(OpCodes.Ldobj, meta.type); // [ items, items, &item ] => [ items, items, item ]
 
             gen.Emit(OpCodes.Call, resultAddMethod);   // items.Add(item) => [items]            
 
@@ -752,7 +754,8 @@ namespace RC.DBA.Emit
 
             public static void EmitNewOrThrow(ILGenerator gen, type_meta meta)
             {
-                if (meta.type.IsAbstract)
+                var type = meta.type;
+                if (type.IsAbstract)
                 {
                     var exType = typeof(NotSupportedException);
                     gen.Emit(OpCodes.Ldstr, "Wrong descriminator value");
@@ -761,7 +764,19 @@ namespace RC.DBA.Emit
                 }
                 else
                 {
-                    gen.Emit(OpCodes.Newobj, meta.type.GetConstructor(Type.EmptyTypes));
+                    var ctor = type.GetConstructor(Type.EmptyTypes);
+                    if (ctor == null && type.IsValueType)
+                    {
+                        var local = gen.DeclareLocal(type);
+                        gen.Emit(OpCodes.Ldloca_S, local);
+                        gen.Emit(OpCodes.Initobj, type);
+                        gen.Emit(OpCodes.Ldloca_S, local);
+
+                        return;   
+                    }
+
+                    gen.Emit(OpCodes.Newobj, ctor);
+
                     //if (meta.collection_props != null)
                     //{
                     //    foreach (var p in meta.collection_props)
