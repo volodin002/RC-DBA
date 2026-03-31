@@ -285,7 +285,7 @@ namespace RC.DBA.Query
             for (int i = 0; i < length; i++)
             {
                 var p = parameters[i];
-                _Parameters.Set(p.Name, p.Copy());
+                _Parameters.Set(p.Name, p);
             }
         }
 
@@ -294,7 +294,7 @@ namespace RC.DBA.Query
             Sql = sql;
             _Parameters = new Collections.HashMap<string, Parameter>(length);
             foreach (var p in parameters)
-                _Parameters.Set(p.Name, p.Copy());
+                _Parameters.Set(p.Name, p);
         }
 
         protected SqlQuery(string sql, Collections.HashMap<string, Parameter> parameters)

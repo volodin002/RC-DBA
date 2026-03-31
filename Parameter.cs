@@ -76,7 +76,7 @@ namespace RC.DBA
 
         internal override Parameter Copy()
         {
-            return new Parameter<T>(Name) { Value = Value, Direction = Direction, Size = Size };
+            return new Parameter<T>(Name) { Value = Value, Direction = Direction, Size = Size, Scale = Scale, Precision = Precision };
         }
     }
 
@@ -100,7 +100,7 @@ namespace RC.DBA
        
         internal override Parameter Copy()
         {
-            return new ParameterArray<T>(Name) { Value = Value, Direction = Direction, Size = Size };
+            return new ParameterArray<T>(Name) { Value = Value, Direction = Direction, Size = Size, Scale = Scale, Precision = Precision };
         }
 
         public override DbParameter DbParameter(DbCommand cmd)
@@ -132,6 +132,12 @@ namespace RC.DBA
                 if (Size > 0)
                     p.Size = Size;
 
+                if (Scale > 0)
+                    p.Scale = Scale;
+
+                if (Precision > 0)
+                    p.Precision = Precision;
+
                 cmd.Parameters.Add(p);
             }
 
@@ -145,6 +151,10 @@ namespace RC.DBA
 
         public int Size;
 
+        public byte Scale;
+
+        public byte Precision;
+        
         public System.Data.ParameterDirection Direction = System.Data.ParameterDirection.Input;
 
         //int getPosition();
@@ -232,6 +242,12 @@ namespace RC.DBA
             p.Direction = Direction;
             if (Size > 0)
                 p.Size = Size;
+
+            if (Scale > 0)
+                p.Scale = Scale;
+
+            if (Precision > 0)
+                p.Precision = Precision;
 
             return p;
         }
