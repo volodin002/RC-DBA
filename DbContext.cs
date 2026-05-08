@@ -1,10 +1,9 @@
-﻿using System;
+﻿using RC.DBA.Metamodel;
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using RC.DBA.Metamodel;
 
 namespace RC.DBA
 {
@@ -320,6 +319,43 @@ namespace RC.DBA
             
         }
 
+        public IList<T> GetResultList<T>(DbConnection con, DbTransaction tran, Query.SqlQuery<T> query, bool updateOutParams)
+        {
+            IList<T> items;
+            using (var cmd = con.CreateCommand())
+            {
+                cmd.Transaction = tran;
+                cmd.CommandText = query.Sql;
+                cmd.CommandType = query.CommandType;
+                if (query.CommandTimeout >= 0)
+                    cmd.CommandTimeout = query.CommandTimeout;
+
+                var parameters = query.Parameters;
+                foreach (var p in parameters)
+                    p.AddDbParameter(cmd);
+
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    var factory = query.factory;
+                    if (factory == null)
+                    {
+                        factory = Emit.DbContextFactoryEmiter.EmitResultListFactory<T>(reader, _manager);
+                        query.factory = factory;
+                    }
+
+                    items = factory(reader);
+                }
+
+                if (updateOutParams)
+                    SetOutputParametersValue(parameters, cmd);
+            }
+
+            return items;
+
+        }
+
+
         public IList<T> GetResultList<T>(DbConnection con, DbTransaction tran, Query.SqlQueryWithCount<T> query, ref int count)
         {
             IList<T> items;
@@ -471,6 +507,41 @@ namespace RC.DBA
                     }
                     items = factory(reader);
                 }
+            }
+
+            return items;
+
+        }
+
+        public IList<T> GetResultList<T>(DbConnection con, Query.SqlQuery<T> query, bool updateOutParams)
+        {
+            IList<T> items;
+            using (var cmd = con.CreateCommand())
+            {
+                cmd.CommandText = query.Sql;
+                cmd.CommandType = query.CommandType;
+                if (query.CommandTimeout >= 0)
+                    cmd.CommandTimeout = query.CommandTimeout;
+
+                var parameters = query.Parameters;
+                foreach (var p in parameters)
+                    p.AddDbParameter(cmd);
+
+                if (con.State != System.Data.ConnectionState.Open) con.Open();
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    var factory = query.factory;
+                    if (factory == null)
+                    {
+                        factory = Emit.DbContextFactoryEmiter.EmitResultListFactory<T>(reader, _manager);
+                        query.factory = factory;
+                    }
+                    items = factory(reader);
+                }
+
+                if (updateOutParams)
+                    SetOutputParametersValue(parameters, cmd);
             }
 
             return items;
