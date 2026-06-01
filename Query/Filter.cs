@@ -24,6 +24,8 @@ namespace RC.DBA.Query
 
         public abstract Predicate FromSql(string sql, IEnumerable<Parameter> parameters);
 
+        public abstract Predicate FromSql(string sql, params Parameter[] parameters);
+
         public abstract bool IsEmpty();
 
         public abstract void SetEmpty();

@@ -118,6 +118,13 @@ namespace RC.DBA.Query.Impl
             }, parameters, null);
         }
 
+        public override Predicate FromSql(string predicateSql, params Parameter[] parameters)
+        {
+            return new PredicateImpl(sql => {
+                sql.Append(predicateSql);
+            }, parameters, null);
+        }
+
         public override Predicate OfType<T1>() //where T1 : T
         {
             return OfType(typeof(T1));
