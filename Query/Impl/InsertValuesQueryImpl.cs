@@ -110,8 +110,17 @@ namespace RC.DBA.Query.Impl
             var returnIdentity = _ReturnIdentity;
             if (returnIdentity) _ReturnIdentity = false;
 
-            base.CompileToSQL(sql).AppendLine();
+            var entity = _modelManager.Entity<T>();
+            sql.Append("INSERT INTO ").Append(entity.Table.TableName).Append("(");
 
+            _values[0].Item1.CompileToSQL(sql);
+            for (int i = 1; i < _values.Count; i++)
+            {
+                sql.Append(',');
+                _values[i].Item1.CompileToSQL(sql);
+            }
+            sql.AppendLine(") ");
+                
             _from.CompileToSQL(sql);
 
             if (returnIdentity)
