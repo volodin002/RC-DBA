@@ -1,6 +1,7 @@
 ﻿using RC.DBA.Metamodel;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
@@ -85,6 +86,45 @@ namespace RC.DBA.Query.Impl
             _parameters.Add(param);
 
             return this;
+        }
+
+        public IInsertValuesQuery<T> SubQueryValue<TProp, TOther>(Expression<Func<T, TProp>> expression, ISelectQuery<TOther> subQuery)
+        {
+            var subQueryParameters = subQuery.Predicate?.Parameters;
+            if (subQueryParameters != null)
+                _parameters.AddRange(subQueryParameters);
+
+            var memberInfo = Helper.Member(expression);
+            var entityAttr = _modelManager.Entity<T>().GetAttribute(memberInfo.Name);
+
+            //memberInfo = Helper.Member(subQueryExpression);
+            //var subQueryentityAttr = _modelManager.Entity<TOther>().GetAttribute(memberInfo.Name);
+
+            _values.Add(Tuple.Create<IExpression, IExpression>(
+                new NameExpressionImpl(entityAttr.Column), 
+                new SelectValueSubQueryExpressionImpl<TOther>(subQuery)));
+
+            return this;
+            
+        }
+       
+    }
+
+    class SelectValueSubQueryExpressionImpl<T> : SelectExpressionImpl
+    {
+        ISelectQuery<T> _subQuery;
+        public SelectValueSubQueryExpressionImpl(ISelectQuery<T> subQuery)
+            : base(null, null, null)
+        {
+            _subQuery = subQuery;
+        }
+
+        public override StringBuilder CompileToSQL(StringBuilder sql)
+        {
+            sql.AppendLine()
+                .Append('(');
+            return _subQuery.CompileToSQL(sql)
+                .Append(')');
         }
     }
 

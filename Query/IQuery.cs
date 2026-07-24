@@ -125,6 +125,8 @@ namespace RC.DBA.Query
 
         IInsertValuesQuery<T> Value<TProp>(Expression<Func<T, TProp>> expression, Parameter<TProp> param);
 
+        IInsertValuesQuery<T> SubQueryValue<TProp, TOther>(Expression<Func<T, TProp>> expression, ISelectQuery<TOther> subQuery);
+
         IInsertValuesQuery<T> ReturnIdentity<TProp>();
     }
 
