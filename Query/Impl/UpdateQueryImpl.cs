@@ -57,6 +57,26 @@ namespace RC.DBA.Query.Impl
             return this;
         }
 
+        public IUpdateQuery<T> SetSubQueryValue<TProp, TOther>(Expression<Func<T, TProp>> expression, ISelectQuery<TOther> subQuery)
+        {
+            var memberInfo = Helper.Member(expression);
+            var entityAttr = _ctx.ModelManager.Entity<T>().GetAttribute(memberInfo.Name);
+
+            var prop = new PopertyExpression(_alias, entityAttr);
+
+            var subQueryParameters = subQuery.Predicate?.Parameters;
+            Parameter[] parameters;
+            if (subQueryParameters != null)
+                parameters = subQueryParameters.ToArray();
+            else
+                parameters = Array.Empty<Parameter>();
+
+            _sets.Add(new UpdateSetExpressionImpl(prop, new SelectValueSubQueryExpressionImpl<TOther>(subQuery), parameters));
+
+            return this;
+
+        }
+
         public override StringBuilder CompileToSQL(StringBuilder sql)
         {
             sql.Append("UPDATE ");

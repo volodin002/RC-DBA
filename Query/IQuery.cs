@@ -115,6 +115,8 @@ namespace RC.DBA.Query
 
         IUpdateQuery<T> Set<TProp>(Expression<Func<T, TProp>> expression, IPopertyExpression<T, TProp> propertyExpression);
 
+        IUpdateQuery<T> SetSubQueryValue<TProp, TOther>(Expression<Func<T, TProp>> expression, ISelectQuery<TOther> subQuery);
+
     }
 
     public interface IInsertValuesQuery<T> : IExpression
