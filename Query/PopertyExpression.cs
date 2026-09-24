@@ -22,5 +22,7 @@ namespace RC.DBA.Query
             return _entityAttribute.EntityType.Table.CompileAlias(sql, _alias)
                 .Append('.').Append(_entityAttribute.Column);
         }
+
+        public IEntityAttribute EntityAttribute => _entityAttribute;
     }
 }

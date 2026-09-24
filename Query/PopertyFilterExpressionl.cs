@@ -147,7 +147,7 @@ namespace RC.DBA.Query
             }, paramArray, null);
         }
 
-        public Predicate In(string SQL, params Parameter<TProp>[] parameters)
+        public Predicate In(string SQL, params Parameter[] parameters)
         {
             return new PredicateImpl(sql =>
             {

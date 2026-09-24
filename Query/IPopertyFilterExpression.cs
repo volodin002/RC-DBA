@@ -63,7 +63,7 @@ namespace RC.DBA.Query
 
         Predicate In(params Parameter<TProp>[] parameters);
 
-        Predicate In(string SQL, params Parameter<TProp>[] parameters);
+        Predicate In(string SQL, params Parameter[] parameters);
 
         Predicate In<TOther>(ISelectQuery<TOther> query);
 

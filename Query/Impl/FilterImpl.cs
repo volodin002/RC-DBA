@@ -257,7 +257,7 @@ namespace RC.DBA.Query.Impl
         }
     }
 
-    class PredicateImpl : PredicateBaseImpl
+    public class PredicateImpl : PredicateBaseImpl
     {
         
         IEnumerable<Parameter> _param;
@@ -280,6 +280,14 @@ namespace RC.DBA.Query.Impl
             _tables = tables;
         }
 
+        public PredicateImpl(PopertyExpression prop, Action<PopertyExpression, StringBuilder> imp, params Parameter[] param) 
+        {
+            _tables = new[] { prop.EntityAttribute.EntityType.Table };
+            _param = param;
+
+            _impl = s => imp(prop, s);
+        }
+
         public override IEnumerable<Parameter> Parameters => _param;
 
         public override IEnumerable<EntityTable> Tables => _tables;
@@ -293,7 +301,7 @@ namespace RC.DBA.Query.Impl
         }
     }
 
-    abstract class PredicateBaseImpl : Predicate
+    public abstract class PredicateBaseImpl : Predicate
     {
         public override Predicate And(params Predicate[] predicates)
         {
