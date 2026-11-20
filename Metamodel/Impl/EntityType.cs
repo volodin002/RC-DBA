@@ -21,6 +21,7 @@ namespace RC.DBA.Metamodel.Impl
 
         protected EntityTable _table;
         protected IEntityType _baseEntityType;
+        public EntityTable _parentTable;
 
         protected Type _classType;
 
@@ -34,7 +35,7 @@ namespace RC.DBA.Metamodel.Impl
 
         public EntityTable Table => _table;
 
-        public EntityTable EnityTable => _table ?? ParentTable;
+        public EntityTable EnityTable => _table ?? _parentTable; //ParentTable;
         public bool IsAbstract => _classType.IsAbstract;
 
         public IEntityType BaseEntityType => _baseEntityType;
@@ -73,15 +74,12 @@ namespace RC.DBA.Metamodel.Impl
                 _attributes.Add(attr.Name, attr);
             }
 
-            //EntityTable parentTable;
             if (type.BaseType != null && type.BaseType != typeof(object))
             {
                 _baseEntityType = modelManager.Entity(type.BaseType);
-                //parentTable = _baseEntityType.Table;
+            
             }
-            //else
-            //    parentTable = null;
-
+            
             var tableAttr = type.GetCustomAttribute<TableAttribute>(false);
             if (tableAttr != null)
             {
@@ -89,24 +87,28 @@ namespace RC.DBA.Metamodel.Impl
                     tableAttr.Schema, this,
                     System.Threading.Interlocked.Increment(ref tableIndx));
             }
-            //else if(parentTable != null)
-            //{
-            //    _table = parentTable;
-            //}
 
             var descAttr = type.GetCustomAttribute<DescriminatorValueAttribute>();
             _descriminator = descAttr != null ? descAttr.Value : -1;
 
-            // There are no Table mapping in base Entity => base class is not Entity!
-            if (_baseEntityType != null && _baseEntityType.EnityTable == null)
+            
+            if (_baseEntityType != null )
             {
-                // move all attributes from base Entity to the current
-                foreach (var a in _baseEntityType.AllAttributes)
+                _parentTable = GetParentTable(_baseEntityType);
+
+                // There are no Table mapping in base Entity  => base class is not Entity!
+                // Or Base Entity have the same table => current entity extends base entity!
+                if (_baseEntityType.EnityTable == null || (_table != null && _parentTable != null && _table.TableName == _parentTable.TableName))
                 {
-                    var attr = new EntityAttribute(a.Member, this);
-                    _attributes.Add(attr.Name, attr);
+                    // move all attributes from base Entity to the current
+                    foreach (var a in _baseEntityType.AllAttributes)
+                    {
+                        var attr = new EntityAttribute(a.Member, this);
+                        _attributes.Add(attr.Name, attr);
+                    }
+                    _baseEntityType = null; // reset base Entity
+                    _parentTable = null;
                 }
-                _baseEntityType = null; // reset base Entity
             }
 
 
@@ -276,21 +278,35 @@ namespace RC.DBA.Metamodel.Impl
 
         public IEntityAttribute Key => _key;
 
-        public EntityTable ParentTable
-        {
-            get
-            {
-                EntityTable table;
-                IEntityType entity = _baseEntityType;
-                while (entity != null)
-                {
-                    table = entity.Table;
-                    if (table != null) return table;
-                    entity = entity.BaseEntityType;
-                }
+        public EntityTable ParentTable => _parentTable;
+        //{
+        //    get
+        //    {
+        //        EntityTable table;
+        //        IEntityType entity = _baseEntityType;
+        //        while (entity != null)
+        //        {
+        //            table = entity.Table;
+        //            if (table != null) return table;
+        //            entity = entity.BaseEntityType;
+        //        }
 
-                return null;
+        //        return null;
+        //    }
+        //}
+
+        private static EntityTable GetParentTable(IEntityType baseEntityType)
+        {
+            EntityTable table;
+           
+            while (baseEntityType != null)
+            {
+                table = baseEntityType.Table;
+                if (table != null) return table;
+                baseEntityType = baseEntityType.BaseEntityType;
             }
+
+            return null;
         }
 
         public IEnumerable<IEntityType> Implementations => _manager.GetImplementations(_classType);
